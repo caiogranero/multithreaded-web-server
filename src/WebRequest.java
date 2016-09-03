@@ -1,4 +1,4 @@
-package multithread;
+
 
 import java.io.BufferedReader;
 import java.io.DataInputStream;
@@ -21,7 +21,7 @@ public final class WebRequest implements Runnable {
 	@Override
 	public void run() {
 		if(s == null){
-			System.out.println("socket não conseguiu inicializar.");
+			System.out.println("socket nï¿½o conseguiu inicializar.");
 			return;
 		}
 		
