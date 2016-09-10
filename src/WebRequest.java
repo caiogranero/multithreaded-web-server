@@ -1,5 +1,3 @@
-
-
 import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -35,7 +33,7 @@ public final class WebRequest implements Runnable {
 
 		try{
 			ProcessRequest();
-		}catch(Exception ex){
+		}catch(IOException ex){
 			System.out.println(ex);
 		}
 	}
@@ -47,14 +45,15 @@ public final class WebRequest implements Runnable {
 	}
 
 	public void ProcessRequest() throws IOException{
-
+		String filename = "";
+		String line = "";
 		os = new DataOutputStream(s.getOutputStream());
 		is = new DataInputStream(s.getInputStream());
 
 		BufferedReader br = new BufferedReader(new InputStreamReader(is));
-
-		String filename = getFileName(br.readLine());
-
+		
+		line = br.readLine();
+		filename = getFileName(line);
 		FileInputStream fis = null;
 		Boolean fileExists = true;
 		try {
@@ -64,27 +63,26 @@ public final class WebRequest implements Runnable {
 		}
 
 
-		String statusLine = null;
-		String contentTypeLine = null;
-		String entityBody = null;
-
+		StringBuilder sb = new StringBuilder("HTTP/1.0 ");
+		
 		if (fileExists) {
-			statusLine = "200 OK";
-			contentTypeLine = "Content-type: " + 
-					contentType( filename ) + CRLF;
+			sb.append("200 OK");
+			sb.append(CRLF);
+			sb.append("Content-type: " + 
+					contentType( filename ) + CRLF);
+			sb.append(CRLF);
 		} else {
-			statusLine = "404 Not Found";
-			contentTypeLine = "text/html";
-			entityBody = "<HTML>" +
+			sb.append("404 Not Found");
+			sb.append(CRLF);
+			sb.append("Content-type: text/html"+ CRLF);
+			sb.append(CRLF);
+			sb.append("<HTML>" +
 					"<HEAD><TITTLE>Not Found</TITTLE></HEAD>" +
-					"<BODY>Not Found</BODY></HTML>";
+					"<BODY>Not Found</BODY></HTML>");
+			os.writeBytes(sb.toString());
 
 		}
-
-		os.writeBytes(statusLine);
-		os.writeBytes(contentTypeLine);
-		os.writeByte(0);
-
+		
 		if (fileExists) {
 			try {
 				sendBytes(fis);
@@ -120,7 +118,16 @@ public final class WebRequest implements Runnable {
 	}
 
 	public String contentType(String fileName){
-		return "text/html";
+		if(fileName.endsWith(".jpg")){
+			return "image/jpeg";			
+		}
+		if (fileName.endsWith(".html")){
+			return "text/html";
+		}
+		if (fileName.endsWith(".gif")){
+			return "image/gif";
+		}
+		return "application/octet-stream";
 	}
 
 }
