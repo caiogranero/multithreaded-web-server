@@ -76,9 +76,8 @@ public final class WebRequest implements Runnable {
 			sb.append(CRLF);
 			sb.append("Content-type: text/html"+ CRLF);
 			sb.append(CRLF);
-			sb.append("<HTML>" +
-					"<HEAD><TITTLE>Not Found</TITTLE></HEAD>" +
-					"<BODY>Not Found</BODY></HTML>");
+			sb.append("<html><head><title>Not Found</title>" +
+					"</head><body>Not Found</body></html>");
 			os.writeBytes(sb.toString());
 
 		}
