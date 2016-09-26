@@ -1,6 +1,7 @@
 import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -45,85 +46,182 @@ public final class WebRequest implements Runnable {
 	}
 
 	public void ProcessRequest() throws IOException{
-		String filename = "";
+		String url = "";
 		String line = "";
 		os = new DataOutputStream(s.getOutputStream());
 		is = new DataInputStream(s.getInputStream());
 
 		BufferedReader br = new BufferedReader(new InputStreamReader(is));
-		
+
 		line = br.readLine();
-		filename = getFileName(line);
+		url = geturl(line);
 		FileInputStream fis = null;
-		Boolean fileExists = true;
-		try {
-			fis = new FileInputStream(filename);
-		} catch (FileNotFoundException e) {
-			fileExists = false;
+
+		if (url.contains("login")){
+			this.singin(url);
 		}
 
+		if (this.isLogged(br)){
+			Boolean fileExists = true;
+			try {
+				fis = new FileInputStream(url);
+			} catch (FileNotFoundException e) {
+				fileExists = false;
+			}
+
+
+			if (fileExists) {
+				StringBuilder sb = this.openFile(url);
+			} else {
+				File folder = new File(url);
+				File[] listOfFiles = folder.listFiles();
+				if(folder.exists()){
+					this.listFoldersFiles(listOfFiles, url);
+				}else{
+					this.return404();
+				}
+			}
+
+			if (fileExists) {
+				try {
+					sendBytes(fis);
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+				fis.close();
+			}
+
+		}else{
+			this.login();
+		}
+		//is.close();
+		//os.close();
+	}
+
+	private void listFoldersFiles(File[] listOfFiles, String url) throws IOException {
+
+		os = new DataOutputStream(s.getOutputStream());
+		StringBuilder sb = new StringBuilder("HTTP/1.0 ");
+		sb.append("200 OK" + CRLF);
+		sb.append("Content-type: text/html"+ CRLF);
+		sb.append(CRLF);
+		sb.append("<html><body>");
+
+		for (int i = 0; i < listOfFiles.length; i++) {
+
+
+
+			if (listOfFiles[i].isFile()) {
+				sb.append(("<a href=\"" + url + listOfFiles[i].getName()+"\">" + "File " + listOfFiles[i].getName())+"<a/><br>");
+			} else if (listOfFiles[i].isDirectory()) {
+				sb.append(("<a href=\"" + url.substring(1) + listOfFiles[i].getName()+"/\">" + "Directory " + listOfFiles[i].getName())+"<a/><br>");
+			}
+
+		}
+
+		sb.append("</body></html>");
+
+		os.writeBytes(sb.toString());
+		os.close();
+
+	}
+
+	private void return404() throws IOException {
+		StringBuilder sb = new StringBuilder("HTTP/1.0 ");
+		os = new DataOutputStream(s.getOutputStream());
+		sb.append("404 Not Found");
+		sb.append(CRLF);
+		sb.append("Content-type: text/html"+ CRLF);
+		sb.append(CRLF);
+		sb.append("<html><head><title>Not Found</title>" +
+				"</head><body>Not Found</body></html>");
+		os.writeBytes(sb.toString());
+		os.close();
+	}
+
+	private StringBuilder openFile(String url) {
+		StringBuilder sb = new StringBuilder("HTTP/1.0 ");
+		sb.append("200 OK");
+		sb.append(CRLF);
+		sb.append("Content-type: " + 
+				contentType( url ) + CRLF);
+		sb.append(CRLF);
+
+		return sb;
+
+	}
+
+	private void login() throws IOException {
+
+		os = new DataOutputStream(s.getOutputStream());
+		StringBuilder sb = new StringBuilder("HTTP/1.0 ");
+		sb.append("200 OK" + CRLF);
+		sb.append("Content-type: text/html"+ CRLF);
+		sb.append(CRLF);
+		sb.append("<html><body><form action=\"/login\">User:<br><input type=\"text\" " +
+				"name=\"name\"><br>Password:<br><input type=\"text\" name=\"password\"> " + 
+				"<br><br><input type=\"submit\" value=\"Submit\"></form></body></html>");
+
+		os.writeBytes(sb.toString());
+		os.close();
+
+	}
+
+	private void singin(String url) throws IOException {
+		os = new DataOutputStream(s.getOutputStream());
+		String user = url.split("name=")[1].split("&")[0];
+		String password = url.split("password=")[1];
 
 		StringBuilder sb = new StringBuilder("HTTP/1.0 ");
-		
-		if (fileExists) {
-			sb.append("200 OK");
+		if(user.equals("network") && password.equals("network123")){
+			sb.append("200 OK" + CRLF);
+			sb.append("Content-type: text/html" + CRLF);
+			sb.append("Set-Cookie:logado=1; Path=/;" + CRLF);
 			sb.append(CRLF);
-			sb.append("Content-type: " + 
-					contentType( filename ) + CRLF);
-			sb.append(CRLF);
-		} else {
-			sb.append("404 Not Found");
-			sb.append(CRLF);
-			sb.append("Content-type: text/html"+ CRLF);
-			sb.append(CRLF);
-			sb.append("<html><head><title>Not Found</title>" +
-					"</head><body>Not Found</body></html>");
+			sb.append("<html><head><title>Logado</title>" +
+					"</head><body>Logado</body></html>");
 			os.writeBytes(sb.toString());
 
 		}
-		
-		if (fileExists) {
-			try {
-				sendBytes(fis);
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
-			fis.close();
-		}
-
-
-		is.close();
 		os.close();
+	}
 
+	private boolean isLogged(BufferedReader br) throws IOException {
+		while (br.ready()){
+			if(br.readLine().contains("logado=1")){
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private void sendBytes(FileInputStream fis)throws Exception
 	{
 		byte[] buffer = new byte[1024];
 		int bytes = 0;
-		
+
 		while((bytes = fis.read(buffer)) != -1 ) {
 			os.write(buffer, 0, bytes);
 		}
 	}
 
-	public String getFileName(String line){
+	public String geturl(String line){
 		StringTokenizer tokens = new StringTokenizer(line);
 		tokens.nextToken();
-		String fileName = tokens.nextToken();
+		String url = tokens.nextToken();
 
-		fileName = "." + fileName;
-		return fileName;
+		url = "." + url;
+		return url;
 	}
 
-	public String contentType(String fileName){
-		if(fileName.endsWith(".jpg")){
+	public String contentType(String url){
+		if(url.endsWith(".jpg")){
 			return "image/jpeg";			
 		}
-		if (fileName.endsWith(".html")){
+		if (url.endsWith(".html")){
 			return "text/html";
 		}
-		if (fileName.endsWith(".gif")){
+		if (url.endsWith(".gif")){
 			return "image/gif";
 		}
 		return "application/octet-stream";
